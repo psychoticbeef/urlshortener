@@ -22,15 +22,11 @@ func redirectHandler(w http.ResponseWriter, r *http.Request) {
 	if reply == "" || err != nil {
 		fmt.Fprintf(w, "Error: %s not found.", html.EscapeString(r.URL.Path))
 	} else {
-		_, err = c.Do("EXPIRE", key, 43200)
-		if err != nil {
-			log.Fatal(err)
-		}
-		_, err = c.Do("INCR", fmt.Sprintf("%s:count", key))
-		if err != nil {
-			log.Fatal(err)
-		}
-		http.Redirect(w, r, fmt.Sprintf("http://%s", reply), 301)
+		count := key + ":count"
+		c.Do("EXPIRE", key, 43200)
+		c.Do("INCR", count)
+		c.Do("EXPIRE", count, 43200)
+		http.Redirect(w, r, "http://"+reply, 301)
 	}
 }
 
@@ -42,8 +38,7 @@ func addHandler(w http.ResponseWriter, r *http.Request) {
 	io.WriteString(h, r.URL.Path)
 	s := fmt.Sprintf("%x", h.Sum(nil))
 	s = s[:4]
-	c.Do("SET", s, value)
-	c.Do("EXPIRE", s, 43200)
+	c.Do("SETEX", s, 43200, value)
 	fmt.Fprintf(w, "Added: %s as %s.", html.EscapeString(value), html.EscapeString(s))
 }
 
